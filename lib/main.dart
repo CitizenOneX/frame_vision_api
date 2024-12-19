@@ -3,7 +3,6 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:image/image.dart' as img;
 import 'package:logging/logging.dart';
 import 'package:share_plus/share_plus.dart';
@@ -29,11 +28,9 @@ class MainApp extends StatefulWidget {
 /// in addition to the connection and application state management provided by SimpleFrameAppState
 class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionAppState {
 
-  // google_generative_ai state
-  GenerativeModel? _model;
-  String _apiKey = '';
-  String _prompt = '';
-  final TextEditingController _apiKeyTextFieldController = TextEditingController();
+  // Custom API state
+  String _apiEndpoint = '';
+  final TextEditingController _apiEndpointTextFieldController = TextEditingController();
   final TextEditingController _promptTextFieldController = TextEditingController();
 
   // the image and metadata to show
@@ -55,7 +52,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
 
   @override
   void dispose() {
-    _apiKeyTextFieldController.dispose();
+    _apiEndpointTextFieldController.dispose();
     _promptTextFieldController.dispose();
     super.dispose();
   }
@@ -69,67 +66,25 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
   }
 
   Future<void> asyncInit() async {
-    await _loadApiKey();
-    await _loadPrompt();
+    await _loadApiEndpoint();
 
     // kick off the connection to Frame and start the app if possible (unawaited)
     tryScanAndConnectAndStart(andRun: true);
   }
 
-  /// Creates an instance of the GenerativeModel to use for generation, using the currently-set _apiKey
-  /// hence the model should be re-created when the api key changes.
-  GenerativeModel _initModel() {
-    return GenerativeModel(
-      model: 'gemini-1.5-flash-latest',
-      apiKey: _apiKey,
-      // TODO systemInstruction: Content.system('system instructions...'),
-      safetySettings: [
-        // note: safety settings are disabled because it tends to block regular queries citing safety.
-        // Be nice and stay safe.
-        SafetySetting(HarmCategory.harassment, HarmBlockThreshold.none),
-        SafetySetting(HarmCategory.hateSpeech, HarmBlockThreshold.none),
-        SafetySetting(HarmCategory.dangerousContent, HarmBlockThreshold.none),
-        SafetySetting(HarmCategory.sexuallyExplicit, HarmBlockThreshold.none),
-      ]
-    );
-  }
-
-  Future<void> _loadApiKey() async {
+  Future<void> _loadApiEndpoint() async {
     final prefs = await SharedPreferences.getInstance();
 
     setState(() {
-      _apiKey = prefs.getString('api_key') ?? '';
-      _apiKeyTextFieldController.text = _apiKey;
-    });
-
-    if (_apiKey != '') {
-      // refresh the generative model
-      _model = _initModel();
-    }
-  }
-
-  Future<void> _saveApiKey() async {
-    _apiKey = _apiKeyTextFieldController.text;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('api_key', _apiKey);
-
-    // refresh the generative model
-    _model = _initModel();
-  }
-
-  Future<void> _loadPrompt() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    setState(() {
-      _prompt = prefs.getString('prompt') ?? '';
-      _promptTextFieldController.text = _prompt;
+      _apiEndpoint = prefs.getString('api_endpoint') ?? '';
+      _apiEndpointTextFieldController.text = _apiEndpoint;
     });
   }
 
-  Future<void> _savePrompt() async {
-    _prompt = _promptTextFieldController.text;
+  Future<void> _saveApiEndpoint() async {
+    _apiEndpoint = _apiEndpointTextFieldController.text;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('prompt', _prompt);
+    await prefs.setString('api_endpoint', _apiEndpoint);
   }
 
   @override
@@ -213,33 +168,32 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
         _imageMeta = meta;
       });
 
-      // Perform vision processing pipeline on the current image, i.e. multimodal query
-      if (_model != null) {
-        final content = [
-          Content.data('image/jpeg', _uprightImageBytes!),
-          Content.text(_prompt)];
+      // Perform vision processing pipeline on the current image, i.e. multimodal API call
 
-        // this call will throw an exception if the api_key is not valid
-        var responseStream = _model!.generateContentStream(content);
-        _pagination.clear();
+      // TODO make API call and return response
+      // final content = [
+      //   Content.data('image/jpeg', _uprightImageBytes!),
+      //   Content.text(_prompt)];
 
-        // show in ListView and paginate for Frame
-        await for (final response in responseStream) {
-          _log.fine(response.text);
-          _appendResponseText(response.text!);
-          setState(() {});
-          await frame!.sendMessage(
-            TxPlainText(
-              msgCode: 0x0a,
-              text: _pagination.getCurrentPage().join('\n')
-            )
-          );
-        }
-      }
-      else {
-        // no _model only if API_KEY is empty
-        throw Exception('Set an API key to get model responses');
-      }
+      // this call will throw an exception if the api_key is not valid
+      // var responseStream = null;
+
+      // _pagination.clear();
+
+      // // show in ListView and paginate for Frame
+      // await for (final response in responseStream) {
+      //   _log.fine(response.text);
+      //   _appendResponseText(response.text!);
+      //   setState(() {});
+      //   await frame!.sendMessage(
+      //     TxPlainText(
+      //       msgCode: 0x0a,
+      //       text: _pagination.getCurrentPage().join('\n')
+      //     )
+      //   );
+      // }
+
+
       // indicate that we're done processing
       _processing = false;
 
@@ -315,14 +269,8 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
           children: [
             Row(
               children: [
-                Expanded(child: TextField(controller: _apiKeyTextFieldController, obscureText: true, obscuringCharacter: '*', decoration: const InputDecoration(hintText: 'Enter Gemini api_key'),)),
-                ElevatedButton(onPressed: _saveApiKey, child: const Text('Save'))
-              ],
-            ),
-            Row(
-              children: [
-                Expanded(child: TextField(controller: _promptTextFieldController, obscureText: false, decoration: const InputDecoration(hintText: 'Enter prompt'),)),
-                ElevatedButton(onPressed: _savePrompt, child: const Text('Save'))
+                Expanded(child: TextField(controller: _apiEndpointTextFieldController, decoration: const InputDecoration(hintText: 'Enter API Endpoint'),)),
+                ElevatedButton(onPressed: _saveApiEndpoint, child: const Text('Save'))
               ],
             ),
             Expanded(
