@@ -1,5 +1,5 @@
-name: frame_vision_gemini
-description: "Queries Google Gemini with a photo taken from Brilliant Labs Frame and a user-editable text prompt"
+name: frame_vision_api
+description: "Captures an image from Brilliant Labs Frame and sends it to a user-specified API for processing"
 publish_to: 'none'
 version: 0.1.0
 

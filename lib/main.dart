@@ -3,7 +3,6 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:frame_vision_gemini/text_pagination.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:image/image.dart' as img;
 import 'package:logging/logging.dart';
@@ -12,6 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_frame_app/frame_vision_app.dart';
 import 'package:simple_frame_app/simple_frame_app.dart';
 import 'package:simple_frame_app/tx/plain_text.dart';
+
+import 'text_pagination.dart';
 
 void main() => runApp(const MainApp());
 
@@ -301,12 +302,12 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Gemini - Frame Vision',
+      title: 'API - Frame Vision',
       theme: ThemeData.dark(),
       home: Scaffold(
         resizeToAvoidBottomInset: true,
         appBar: AppBar(
-          title: const Text('Gemini - Frame Vision'),
+          title: const Text('API - Frame Vision'),
           actions: [getBatteryWidget()]
         ),
         drawer: getCameraDrawer(),

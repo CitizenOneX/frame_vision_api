@@ -1,4 +1,4 @@
-package com.example.frame_vision_gemini
+package com.example.frame_vision_api
 
 import io.flutter.embedding.android.FlutterActivity
 
