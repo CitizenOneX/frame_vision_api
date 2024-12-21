@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -11,6 +10,7 @@ import 'package:simple_frame_app/frame_vision_app.dart';
 import 'package:simple_frame_app/simple_frame_app.dart';
 import 'package:simple_frame_app/tx/plain_text.dart';
 
+import 'api_call.dart';
 import 'text_pagination.dart';
 
 void main() => runApp(const MainApp());
@@ -61,7 +61,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
   void initState() {
     super.initState();
 
-    // Frame connection and Gemini model initialization need to be performed asynchronously
+    // Frame connection and saved text field loading need to be performed asynchronously
     asyncInit();
   }
 
@@ -109,7 +109,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
       case 1:
         // next
         _pagination.nextPage();
-        frame!.sendMessage(
+        await frame!.sendMessage(
           TxPlainText(
             msgCode: 0x0a,
             text: _pagination.getCurrentPage().join('\n')
@@ -119,7 +119,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
       case 2:
         // prev
         _pagination.previousPage();
-        frame!.sendMessage(
+        await frame!.sendMessage(
           TxPlainText(
             msgCode: 0x0a,
             text: _pagination.getCurrentPage().join('\n')
@@ -131,6 +131,18 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
         if (!_processing) {
           _processing = true;
           // start new vision capture
+
+          // show we're capturing on the Frame display
+          await frame!.sendMessage(
+            TxPlainText(
+              msgCode: 0x0a,
+              text: '\u{F0007}', // starry eyes emoji
+              x: 285,
+              y: 1,
+              paletteOffset: 8,
+            )
+          );
+
           // asynchronously kick off the capture/processing pipeline
           capture().then(process);
         }
@@ -143,98 +155,99 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
   FutureOr<void> process((Uint8List, ImageMetadata) photo) async {
     var imageData = photo.$1;
     var meta = photo.$2;
-    _responseTextList.clear();
 
     try {
-      // NOTE: Frame camera is rotated 90 degrees clockwise,
-      // so we need to make it upright for Gemini image processing.
       img.Image? imgIm = img.decodeJpg(imageData);
+
+      // if the photo is malformed, just bail out
       if (imgIm == null) {
-        // if the photo is malformed, just bail out
         throw Exception('Error decoding photo');
       }
 
-      // perform the rotation and re-encode as JPEG
+      // Frame camera is rotated 90 degrees clockwise,
+      // so we need to make the image upright for image processing.
       imgIm = img.copyRotate(imgIm, angle: 270);
       _uprightImageBytes = img.encodeJpg(imgIm);
 
-      // update Widget UI
-      // For the widget we rotate it upon display with a transform,
-      // not changing the source image
-      Image im = Image.memory(imageData, gaplessPlayback: true,);
-
+      // update UI with image and empty the text list
       setState(() {
-        _image = im;
+        _image = Image.memory(_uprightImageBytes!, gaplessPlayback: true,);
         _imageMeta = meta;
+        _responseTextList.clear();
       });
 
-      // Perform vision processing pipeline on the current image, i.e. multimodal API call
+      // Perform vision processing pipeline on the current image
+      // Initialize the service with the current _apiEndpoint
+      final apiService = ApiService(endpointUrl: _apiEndpoint);
 
-      // TODO make API call and return response
-      // final content = [
-      //   Content.data('image/jpeg', _uprightImageBytes!),
-      //   Content.text(_prompt)];
+      // show we're calling the API
+      await frame!.sendMessage(
+        TxPlainText(
+          msgCode: 0x0a,
+          text: '\u{F0003}', // 3d shades emoji
+          x: 285,
+          y: 1,
+          paletteOffset: 8,
+        )
+      );
 
-      // this call will throw an exception if the api_key is not valid
-      // var responseStream = null;
+      try {
+        // Make the API call
+        final response = await apiService.processImage(
+          imageBytes: imageData,
+        );
 
-      // _pagination.clear();
+        // Handle the response
+        _log.fine(() => 'Received text: $response');
 
-      // // show in ListView and paginate for Frame
-      // await for (final response in responseStream) {
-      //   _log.fine(response.text);
-      //   _appendResponseText(response.text!);
-      //   setState(() {});
-      //   await frame!.sendMessage(
-      //     TxPlainText(
-      //       msgCode: 0x0a,
-      //       text: _pagination.getCurrentPage().join('\n')
-      //     )
-      //   );
-      // }
+        // show in ListView and paginate for Frame
+        _handleResponseText(response);
 
+      } catch (e) {
+        // Error calling API (includes 404s as well as 500s)
+        // separate "error in API" and "error calling API" if we can do so here
+        _log.severe(e);
+        await _handleResponseText(e.toString());
+      }
 
       // indicate that we're done processing
       _processing = false;
 
     } catch (e) {
-      String err = 'Error processing photo: $e';
-      _log.fine(err);
-      setState(() {
-        _responseTextList.add(err);
-      });
+      // error processing image (or something else?)
+      // TODO shouldn't happen often, but should I do this with if/then rather than try/catch
+      String err = 'Error processing image: $e';
+      _log.severe(err);
+      await _handleResponseText(err);
       _processing = false;
-      // TODO rethrow;?
     }
   }
 
-  /// generated text contains newlines when it wants them, otherwise append strings
-  /// directly
-  void _appendResponseText(String text) {
+  /// replace ListView text with the response,
+  /// and also send the response to Frame for display
+  Future<void> _handleResponseText(String text) async {
+    _responseTextList.clear();
+    _pagination.clear();
     List<String> splitText = text.split('\n');
 
-    if (_responseTextList.isEmpty) {
-      _responseTextList.addAll(splitText);
+    // add to the ListView
+    _responseTextList.addAll(splitText);
 
-      for (var line in splitText) {
-        _pagination.appendLine(line);
-      }
+    // prepare for display on Frame (accommodating its line width)
+    for (var line in splitText) {
+      _pagination.appendLine(line);
     }
-    else {
-      if (splitText.isNotEmpty) {
-        // append the first line of splitText to the last string in list
-        String updatedLastLine = _responseTextList[_responseTextList.length-1] + splitText[0];
-        _responseTextList[_responseTextList.length-1] = updatedLastLine;
-        _pagination.updateLastLine(updatedLastLine);
 
-        // append all the other lines from splitText to list
-        _responseTextList.addAll(splitText.skip(1));
-        for (var line in splitText.skip(1)) {
-          _pagination.appendLine(line);
-        }
-      }
-      // else nothing to do
-    }
+    // put the response on Frame's display
+    await frame!.sendMessage(
+      TxPlainText(
+        msgCode: 0x0a,
+        text: _pagination.getCurrentPage().join('\n')
+      )
+    );
+
+    // redraw the UI
+    setState(() {});
   }
 
   /// Use the platform Share mechanism to share the image and the generated text
@@ -269,7 +282,12 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
           children: [
             Row(
               children: [
-                Expanded(child: TextField(controller: _apiEndpointTextFieldController, decoration: const InputDecoration(hintText: 'Enter API Endpoint'),)),
+                Expanded(child: TextField(
+                  controller: _apiEndpointTextFieldController,
+                  decoration: const InputDecoration(
+                    hintText: 'E.g. http://192.168.0.5:8000/process'
+                  ),
+                )),
                 ElevatedButton(onPressed: _saveApiEndpoint, child: const Text('Save'))
               ],
             ),
@@ -285,13 +303,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Transform(
-                        alignment: Alignment.center,
-                        // images are rotated 90 degrees clockwise from the Frame
-                        // so reverse that for display
-                        transform: Matrix4.rotationZ(-pi*0.5),
-                        child: _image,
-                      ),
+                      child: _image,
                     ),
                   ),
                   if (_imageMeta != null)
