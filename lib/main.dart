@@ -39,7 +39,8 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
   ImageMetadata? _imageMeta;
   bool _processing = false;
 
-  // the response to show
+  // the response to show, and the timer to clear it after 10s
+  Timer? _clearTimer;
   final List<String> _responseTextList = [];
   final TextPagination _pagination = TextPagination();
 
@@ -106,7 +107,12 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
   @override
   Future<void> onTap(int taps) async {
     switch (taps) {
+      // Next Page
       case 1:
+        // Cancel any pending clear operations
+        _clearTimer?.cancel();
+        _clearTimer = null;
+
         // next
         _pagination.nextPage();
         await frame!.sendMessage(
@@ -116,7 +122,12 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
           )
         );
         break;
+      // Previous Page
       case 2:
+        // Cancel any pending clear operations
+        _clearTimer?.cancel();
+        _clearTimer = null;
+
         // prev
         _pagination.previousPage();
         await frame!.sendMessage(
@@ -126,11 +137,16 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
           )
         );
         break;
+      // Take Photo
       case 3:
         // check if there's processing in progress already and drop the request if so
         if (!_processing) {
           _processing = true;
           // start new vision capture
+
+          // Cancel any pending clear operations
+          _clearTimer?.cancel();
+          _clearTimer = null;
 
           // show we're capturing on the Frame display
           await frame!.sendMessage(
@@ -214,8 +230,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
       _processing = false;
 
     } catch (e) {
-      // error processing image (or something else?)
-      // TODO shouldn't happen often, but should I do this with if/then rather than try/catch
+      // error processing image (or other)
       String err = 'Error processing image: $e';
       _log.severe(err);
       await _handleResponseText(err);
@@ -248,6 +263,19 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
 
     // redraw the UI
     setState(() {});
+
+    // clear the display in 10s unless canceled
+    _scheduleClearDisplay();
+  }
+
+  /// clear Frame's display after showing text for 10s (_clearTimer can be canceled)
+  void _scheduleClearDisplay() {
+    if (!_processing) {
+      _clearTimer = Timer(const Duration(seconds: 10), () async {
+        // clear Frame's display
+        await frame!.sendMessage(TxPlainText(msgCode: 0x0a, text: ' '));
+      });
+    }
   }
 
   /// Use the platform Share mechanism to share the image and the generated text
