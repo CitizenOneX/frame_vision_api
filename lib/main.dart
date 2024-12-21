@@ -69,6 +69,9 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
   void initState() {
     super.initState();
 
+    // set default camera quality to 50
+    qualityIndex = 2;
+
     // Frame connection and saved text field loading need to be performed asynchronously
     asyncInit();
   }
