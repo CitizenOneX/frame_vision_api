@@ -22,7 +22,10 @@ An example compatible implementation using Python/FastAPI is provided in [frame_
 * If the API host and uvicorn server is reachable but the endpoint name is incorrect, the error text displayed will include `404` (_check your API endpoint configuration matches the FastAPI endpoint/route name_)
 
 ### Frameshots
+![Frameshot](docs/frameshot.png)
 
 ### Framecast
 
+
 ### Screenshots
+![Screenshot](docs/screenshot.png)
