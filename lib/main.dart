@@ -160,6 +160,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
             TxPlainText(
               msgCode: 0x0a,
               text: '\u{F0007}', // starry eyes emoji
+              paletteOffset: 8, // yellow
             )
           );
 
