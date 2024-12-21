@@ -14,6 +14,7 @@ An example compatible implementation using Python/FastAPI is provided in [frame_
 * 3D glasses emoji is shown when API endpoint is processing the photo
 * The text response from your API is then shown on Frame (with pagination)
 * Camera settings can be adjusted in the settings drawer
+* Touch the image or text in-app to Share
 
 ## Troubleshooting
 * If the API host IP address is unreachable an error should be printed immediately in the app and on Frame (_check the IP address is reachable, e.g. by confirming the URL in a browser on your mobile device. Note that this address cannot be the `localhost` or `127.0.0.1` interface on your computer, but an interface address that is reachable over the network e.g. `192.168.0.10` etc._)
