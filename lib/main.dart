@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:image/image.dart' as img;
 import 'package:logging/logging.dart';
 import 'package:share_plus/share_plus.dart';
@@ -11,9 +12,15 @@ import 'package:simple_frame_app/simple_frame_app.dart';
 import 'package:simple_frame_app/tx/plain_text.dart';
 
 import 'api_call.dart';
+import 'foreground_service.dart';
 import 'text_pagination.dart';
 
-void main() => runApp(const MainApp());
+void main() {
+  // Set up Android foreground service
+  initializeForegroundService();
+
+  runApp(const MainApp());
+}
 
 final _log = Logger("MainApp");
 
@@ -296,80 +303,83 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'API - Frame Vision',
-      theme: ThemeData.dark(),
-      home: Scaffold(
-        resizeToAvoidBottomInset: true,
-        appBar: AppBar(
-          title: const Text('API - Frame Vision'),
-          actions: [getBatteryWidget()]
-        ),
-        drawer: getCameraDrawer(),
-        body: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: TextField(
-                  controller: _apiEndpointTextFieldController,
-                  decoration: const InputDecoration(
-                    hintText: 'E.g. http://192.168.0.5:8000/process'
-                  ),
-                )),
-                ElevatedButton(onPressed: _saveApiEndpoint, child: const Text('Save'))
-              ],
-            ),
-            Expanded(
-            child: GestureDetector(
-              onTap: () {
-                if (_uprightImageBytes != null) {
-                  _shareImage(_uprightImageBytes, _responseTextList.join('\n'));
-                }
-              },
-              child: CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _image,
+    startForegroundService();
+    return WithForegroundTask(
+      child: MaterialApp(
+        title: 'API - Frame Vision',
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          resizeToAvoidBottomInset: true,
+          appBar: AppBar(
+            title: const Text('API - Frame Vision'),
+            actions: [getBatteryWidget()]
+          ),
+          drawer: getCameraDrawer(),
+          body: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: TextField(
+                    controller: _apiEndpointTextFieldController,
+                    decoration: const InputDecoration(
+                      hintText: 'E.g. http://192.168.0.5:8000/process'
                     ),
-                  ),
-                  if (_imageMeta != null)
+                  )),
+                  ElevatedButton(onPressed: _saveApiEndpoint, child: const Text('Save'))
+                ],
+              ),
+              Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  if (_uprightImageBytes != null) {
+                    _shareImage(_uprightImageBytes, _responseTextList.join('\n'));
+                  }
+                },
+                child: CustomScrollView(
+                  slivers: [
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Column(children: [
-                          _imageMeta!,
-                          const Divider()
-                        ]),
+                        child: _image,
                       ),
                     ),
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0,
-                          ),
-                          child: Text(_responseTextList[index]),
-                        );
-                      },
-                      childCount: _responseTextList.length,
+                    if (_imageMeta != null)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(children: [
+                            _imageMeta!,
+                            const Divider()
+                          ]),
+                        ),
+                      ),
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0,
+                            ),
+                            child: Text(_responseTextList[index]),
+                          );
+                        },
+                        childCount: _responseTextList.length,
+                      ),
                     ),
-                  ),
-                  // This ensures the list can grow dynamically
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Container(), // Empty container to allow scrolling
-                  ),
-                ],
+                    // This ensures the list can grow dynamically
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Container(), // Empty container to allow scrolling
+                    ),
+                  ],
+                ),
               ),
             ),
+            ],
           ),
-          ],
+          floatingActionButton: getFloatingActionButtonWidget(const Icon(Icons.camera_alt), const Icon(Icons.cancel)),
+          persistentFooterButtons: getFooterButtonsWidget(),
         ),
-        floatingActionButton: getFloatingActionButtonWidget(const Icon(Icons.camera_alt), const Icon(Icons.cancel)),
-        persistentFooterButtons: getFooterButtonsWidget(),
       ),
     );
   }

@@ -17,6 +17,10 @@
     <!-- legacy for Android 9 or lower -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="28" />
 
+    <!-- Foreground service required to maintain BLE connection when phone is locked or app is backgrounded -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+
     <!-- internet permission for gemini requests -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
@@ -46,6 +50,13 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="connectedDevice"
+            android:exported="false"
+        />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
