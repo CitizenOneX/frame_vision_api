@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:image/image.dart' as img;
 import 'package:logging/logging.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -42,7 +41,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
 
   // the image and metadata to show
   Image? _image;
-  Uint8List? _uprightImageBytes;
+  Uint8List? _imageData;
   ImageMetadata? _imageMeta;
   bool _processing = false;
 
@@ -68,9 +67,6 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
   @override
   void initState() {
     super.initState();
-
-    // set default camera quality to 50
-    qualityIndex = 2;
 
     // Frame connection and saved text field loading need to be performed asynchronously
     asyncInit();
@@ -181,21 +177,10 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
     var meta = photo.$2;
 
     try {
-      img.Image? imgIm = img.decodeJpg(imageData);
-
-      // if the photo is malformed, just bail out
-      if (imgIm == null) {
-        throw Exception('Error decoding photo');
-      }
-
-      // Frame camera is rotated 90 degrees clockwise,
-      // so we need to make the image upright for image processing.
-      imgIm = img.copyRotate(imgIm, angle: 270);
-      _uprightImageBytes = img.encodeJpg(imgIm);
-
       // update UI with image and empty the text list
       setState(() {
-        _image = Image.memory(_uprightImageBytes!, gaplessPlayback: true,);
+        _imageData = imageData;
+        _image = Image.memory(imageData, gaplessPlayback: true,);
         _imageMeta = meta;
         _responseTextList.clear();
       });
@@ -332,8 +317,8 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
               Expanded(
               child: GestureDetector(
                 onTap: () {
-                  if (_uprightImageBytes != null) {
-                    _shareImage(_uprightImageBytes, _responseTextList.join('\n'));
+                  if (_imageData != null) {
+                    _shareImage(_imageData, _responseTextList.join('\n'));
                   }
                 },
                 child: CustomScrollView(
@@ -349,7 +334,7 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Column(children: [
-                            _imageMeta!,
+                            ImageMetadataWidget(meta: _imageMeta!),
                             const Divider()
                           ]),
                         ),
