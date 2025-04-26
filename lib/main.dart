@@ -8,7 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_frame_app/frame_vision_app.dart';
 import 'package:simple_frame_app/simple_frame_app.dart';
-import 'package:simple_frame_app/tx/plain_text.dart';
+import 'package:frame_msg/tx/plain_text.dart';
 
 import 'api_call.dart';
 import 'foreground_service.dart';
@@ -96,11 +96,10 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
 
   @override
   Future<void> onRun() async {
-    await frame!.sendMessage(
+    await frame!.sendMessage(0x0a,
       TxPlainText(
-        msgCode: 0x0a,
         text: '3-Tap: take photo\n______________\n1-Tap: next page\n2-Tap: previous page'
-      )
+      ).pack()
     );
   }
 
@@ -121,11 +120,10 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
 
         // next
         _pagination.nextPage();
-        await frame!.sendMessage(
+        await frame!.sendMessage(0x0a,
           TxPlainText(
-            msgCode: 0x0a,
             text: _pagination.getCurrentPage().join('\n')
-          )
+          ).pack()
         );
         break;
       // Previous Page
@@ -136,11 +134,10 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
 
         // prev
         _pagination.previousPage();
-        await frame!.sendMessage(
+        await frame!.sendMessage(0x0a,
           TxPlainText(
-            msgCode: 0x0a,
             text: _pagination.getCurrentPage().join('\n')
-          )
+          ).pack()
         );
         break;
       // Take Photo
@@ -155,12 +152,11 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
           _clearTimer = null;
 
           // show we're capturing on the Frame display
-          await frame!.sendMessage(
+          await frame!.sendMessage(0x0a,
             TxPlainText(
-              msgCode: 0x0a,
               text: '\u{F0007}', // starry eyes emoji
               paletteOffset: 8, // yellow
-            )
+            ).pack()
           );
 
           // asynchronously kick off the capture/processing pipeline
@@ -190,14 +186,13 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
       final apiService = ApiService(endpointUrl: _apiEndpoint);
 
       // show we're calling the API
-      await frame!.sendMessage(
+      await frame!.sendMessage(0x0a,
         TxPlainText(
-          msgCode: 0x0a,
           text: '\u{F0003}', // 3d shades emoji
           x: 285,
           y: 1,
           paletteOffset: 8,
-        )
+        ).pack()
       );
 
       try {
@@ -247,11 +242,10 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
     }
 
     // put the response on Frame's display
-    await frame!.sendMessage(
+    await frame!.sendMessage(0x0a,
       TxPlainText(
-        msgCode: 0x0a,
         text: _pagination.getCurrentPage().join('\n')
-      )
+      ).pack()
     );
 
     // redraw the UI
@@ -266,7 +260,11 @@ class MainAppState extends State<MainApp> with SimpleFrameAppState, FrameVisionA
     if (!_processing) {
       _clearTimer = Timer(const Duration(seconds: 10), () async {
         // clear Frame's display
-        await frame!.sendMessage(TxPlainText(msgCode: 0x0a, text: ' '));
+        await frame!.sendMessage(0x0a,
+          TxPlainText(
+            text: ' '
+          ).pack()
+        );
       });
     }
   }

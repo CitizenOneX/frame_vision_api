@@ -11,13 +11,14 @@ dependencies:
     sdk: flutter
   flutter_blue_plus: ^1.34.5
   flutter_foreground_task: ^6.5.0
+  frame_msg: ^2.0.0
   http: ^1.2.2
   http_parser: ^4.0.2
   image: ^4.3.0
   logging: ^1.3.0
   share_plus: ^10.1.0
   shared_preferences: ^2.3.2
-  simple_frame_app: ^4.0.1
+  simple_frame_app: ^7.0.0
 
 dev_dependencies:
   flutter_test:
@@ -27,9 +28,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - packages/simple_frame_app/lua/battery.min.lua
-    - packages/simple_frame_app/lua/camera.min.lua
-    - packages/simple_frame_app/lua/code.min.lua
-    - packages/simple_frame_app/lua/data.min.lua
-    - packages/simple_frame_app/lua/plain_text.min.lua
+    - packages/frame_msg/lua/battery.min.lua
+    - packages/frame_msg/lua/camera.min.lua
+    - packages/frame_msg/lua/code.min.lua
+    - packages/frame_msg/lua/data.min.lua
+    - packages/frame_msg/lua/plain_text.min.lua
     - assets/frame_app.lua
